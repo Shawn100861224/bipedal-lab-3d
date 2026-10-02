@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>肖宇航 · 三维视觉（3D 方向）· 双足实验室第一轮考核</title>
+<meta name="description" content="郑州大学软件工程 2026 级肖宇航的个人页：为什么选择双足实验室的 3D（三维视觉）方向，从高中到现在真实做过的事，以及一个自己抓数据做出来的 3D 开源项目雷达。">
+<meta name="theme-color" content="#0c0e11">
+<meta property="og:type" content="website">
+<meta property="og:title" content="肖宇航 · 3D（三维视觉）方向 · 双足实验室第一轮考核">
+<meta property="og:description" content="我想做机器人的眼睛——一个用 AI 协作做出来的个人页，附 116 个三维视觉开源项目的实时雷达。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230c0e11'/%3E%3Cg fill='%235ec962'%3E%3Ccircle cx='8' cy='20' r='2.2'/%3E%3Ccircle cx='16' cy='12' r='2.8'/%3E%3Ccircle cx='24' cy='21' r='2'/%3E%3Ccircle cx='20' cy='25' r='1.6'/%3E%3Ccircle cx='11' cy='9' r='1.6'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   设计说明（给未来的自己 / 评审）
+   版式：上面一块「仪器」——实时点云；下面一本「实验记录」——纸色正文。
+   颜色：纸 #f5f3ee / 墨 #16181d / 标定橙 #c9430c / 深度青 #21736c
+         点云用真实深度伪彩（viridis），不是装饰渐变。
+   字体：标题用衬线（报刊感，中文下比无衬线更耐读），数据一律等宽。
+   ============================================================ */
+:root{
+  --paper:#f5f3ee; --card:#fbfaf6; --ink:#16181d; --ink-2:#3a3e46;
+  --muted:#71747c; --line:#ddd8cd; --line-2:#eae6dd;
+  --acc:#c9430c; --acc-soft:#f2e2da; --deep:#21736c;
+  --hero:#0c0e11; --hero-line:#23262c;
+  --display:"Source Han Serif SC","Noto Serif SC","Songti SC","SimSun",Georgia,"Times New Roman",serif;
+  --sans:system-ui,-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","Consolas","SFMono-Regular","Menlo",monospace;
+  --wrap:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.75;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+img{max-width:100%}
+a{color:var(--ink)}
+h1,h2,h3,h4{font-family:var(--display); font-weight:600; line-height:1.25; letter-spacing:.01em}
+h2{font-size:clamp(24px,3.4vw,36px); margin:0 0 6px}
+h3{font-size:19px; margin:0}
+p{margin:0 0 1em}
+code,kbd,pre,.mono{font-family:var(--mono)}
+.wrap{width:100%; max-width:var(--wrap); margin:0 auto; padding:0 24px}
+
+/* ---------- 顶部细导航 ---------- */
+.nav{
+  position:fixed; inset:0 0 auto 0; z-index:40; height:52px;
+  background:rgba(12,14,17,.86); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--hero-line);
+  transition:background .25s, border-color .25s;
+}
+.nav.light{background:rgba(245,243,238,.92); border-bottom-color:var(--line)}
+.nav .wrap{display:flex; align-items:center; gap:18px; height:52px; max-width:1320px}
+.nav .brand{font-family:var(--mono); font-size:12px; letter-spacing:.14em; color:#f5f3ee; white-space:nowrap}
+.nav.light .brand{color:var(--ink)}
+.nav .links{display:flex; gap:20px; margin-left:auto; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.nav .links::-webkit-scrollbar{display:none}
+.nav a{
+  font-family:var(--mono); font-size:12px; letter-spacing:.06em; color:#a9adb5;
+  text-decoration:none; padding:6px 0; white-space:nowrap; border-bottom:2px solid transparent;
+}
+.nav.light a{color:var(--muted)}
+.nav a:hover,.nav.light a:hover{color:var(--acc)}
+.nav a.on{color:#f5f3ee; border-bottom-color:var(--acc)}
+.nav.light a.on{color:var(--ink)}
+
+/* ---------- HERO：实时点云 ---------- */
+.hero{position:relative; background:var(--hero); color:#f2f0ea; overflow:hidden;
+  padding:96px 0 44px; min-height:88vh; display:flex; flex-direction:column; justify-content:center}
+#cloud{position:absolute; inset:0; width:100%; height:100%; display:block; cursor:grab; touch-action:pan-y}
+#cloud.drag{cursor:grabbing}
+.hero .wrap{position:relative; z-index:2; pointer-events:none}
+.hero .wrap a,.hero .wrap button,.hero .wrap .kpis,.hero .wrap .hint{pointer-events:auto}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.22em; color:#7f8794; margin-bottom:26px}
+.eyebrow b{color:#5ec962; font-weight:400}
+.hero h1{font-size:clamp(38px,7.4vw,84px); margin:0 0 20px; letter-spacing:.02em}
+.hero h1 em{font-style:normal; color:#5ec962}
+.hero .lede{font-size:clamp(16px,1.5vw,19px); color:#c9ccd3; max-width:44ch; margin:0 0 26px}
+.hero .lede s{text-decoration:none; color:#f2f0ea; border-bottom:2px solid var(--acc)}
+.tag-row{display:flex; flex-wrap:wrap; gap:10px; margin:0 0 30px}
+.tag{font-family:var(--mono); font-size:12px; padding:5px 11px; border:1px solid #2f333a; color:#c9ccd3; border-radius:999px}
+.tag.pick{border-color:#3d6b3a; color:#8fd693; background:#10170f}
+.hint{font-family:var(--mono); font-size:11.5px; color:#6f7683; display:flex; flex-wrap:wrap; gap:16px}
+.kpis{display:flex; flex-wrap:wrap; gap:26px; margin:34px 0 0; padding-top:22px; border-top:1px solid var(--hero-line)}
+.kpi{min-width:110px}
+.kpi b{display:block; font-family:var(--mono); font-size:22px; color:#f2f0ea; letter-spacing:-.01em}
+.kpi span{font-size:12px; color:#7f8794}
+
+/* ---------- 正文骨架 ---------- */
+main{background:var(--paper)}
+section{padding:74px 0}
+section + section{border-top:1px solid var(--line-2)}
+.sec-head{display:grid; grid-template-columns:78px 1fr; gap:20px; margin-bottom:34px; align-items:start}
+.sec-num{font-family:var(--mono); font-size:12px; color:var(--acc); letter-spacing:.16em; padding-top:8px}
+.sec-head .kicker{font-family:var(--mono); font-size:12px; color:var(--muted); letter-spacing:.1em; margin:0 0 8px}
+.sec-head .dek{color:var(--ink-2); max-width:62ch; margin:6px 0 0}
+.body{display:grid; grid-template-columns:78px 1fr; gap:20px}
+.body > .col{max-width:74ch}
+
+/* 列表：用排版而不是卡片 */
+.rows{border-top:1px solid var(--line); margin:0}
+.row{display:grid; grid-template-columns:132px 1fr; gap:22px; padding:20px 0; border-bottom:1px solid var(--line-2)}
+.row .when{font-family:var(--mono); font-size:12px; color:var(--muted); padding-top:4px}
+.row h3{margin-bottom:6px; font-size:17.5px}
+.row p{margin:0; color:var(--ink-2)}
+.row .tagline{display:inline-block; font-family:var(--mono); font-size:11px; color:var(--deep);
+  border:1px solid #cfe0dd; background:#eef5f4; padding:1px 8px; border-radius:3px; margin-left:8px; vertical-align:2px}
+.row .tagline.warn{color:#8a4a12; border-color:#e9d6bf; background:#faf1e6}
+
+/* 方向选择：左论据右定义 */
+.split{display:grid; grid-template-columns:1.35fr 1fr; gap:44px; align-items:start}
+.def{border-left:3px solid var(--acc); padding:2px 0 2px 20px}
+.def h3{font-size:17px; margin-bottom:10px}
+.def dl{margin:0; font-size:14.5px}
+.def dt{font-family:var(--mono); font-size:11.5px; color:var(--muted); letter-spacing:.06em; margin-top:14px}
+.def dd{margin:2px 0 0; color:var(--ink-2)}
+ul.clean{list-style:none; padding:0; margin:0}
+ul.clean li{position:relative; padding-left:26px; margin-bottom:14px; color:var(--ink-2)}
+ul.clean li::before{content:""; position:absolute; left:6px; top:11px; width:7px; height:7px; background:var(--acc);
+  border-radius:50%}
+ul.clean li b{color:var(--ink)}
+.chain{display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-family:var(--mono); font-size:12.5px; color:var(--ink-2); margin:22px 0 0}
+.chain span{padding:6px 12px; border:1px solid var(--line); background:var(--card); border-radius:4px}
+.chain i{color:var(--acc); font-style:normal}
+
+/* ---------- 项目雷达 ---------- */
+.radar-head{display:flex; flex-wrap:wrap; gap:22px; align-items:flex-end; justify-content:space-between}
+.stats{display:flex; flex-wrap:wrap; gap:22px; margin:0}
+.stat{min-width:96px}
+.stat b{display:block; font-family:var(--mono); font-size:20px; letter-spacing:-.02em}
+.stat span{font-size:11.5px; color:var(--muted); font-family:var(--mono)}
+.toolbar{margin:26px 0 8px; display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+.chips{display:flex; flex-wrap:wrap; gap:7px}
+.chip{
+  font-family:var(--mono); font-size:12px; padding:6px 12px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink-2); border-radius:999px; cursor:pointer; min-height:32px;
+}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper)}
+.chip.acc[aria-pressed="true"]{background:var(--acc); border-color:var(--acc)}
+.chip .n{color:var(--muted); margin-left:6px}
+.chip[aria-pressed="true"] .n{color:#b9b6ae}
+.search{position:relative; flex:1 1 220px; min-width:190px}
+.search input{
+  width:100%; font-family:var(--mono); font-size:13px; padding:9px 12px 9px 32px; min-height:38px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:4px;
+}
+.search input:focus{outline:2px solid var(--acc); outline-offset:1px; border-color:var(--acc)}
+.search svg{position:absolute; left:10px; top:11px; width:14px; height:14px; stroke:var(--muted); fill:none; stroke-width:2}
+.sortbox{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; color:var(--muted)}
+select{font-family:var(--mono); font-size:12px; padding:8px 10px; min-height:38px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); border-radius:4px}
+.hotnote{font-family:var(--mono); font-size:11.5px; color:var(--muted); margin:2px 0 22px}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:14px}
+.repo{
+  background:var(--card); border:1px solid var(--line); border-radius:6px; padding:16px 16px 13px;
+  display:flex; flex-direction:column; gap:10px; position:relative;
+}
+.repo:hover{border-color:#c9c2b3}
+.repo.picked{border-color:#d8b6a6; background:#fdfaf6}
+.repo .top{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.repo .stars{font-family:var(--mono); font-size:12px; color:var(--acc); white-space:nowrap}
+.repo h3{font-size:16.5px; word-break:break-word; margin:0}
+.repo .owner{font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+.badges{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+.badge{font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:3px; border:1px solid var(--line); color:var(--muted)}
+.badge.hot{color:#8a4a12; border-color:#e9d6bf; background:#faf1e6}
+.badge.pick{color:#8a2f0d; border-color:#eccdbc; background:#fbeae2}
+.badge.arch{color:#8b1f1f; border-color:#e8c9c9; background:#fbeaea}
+.repo .desc{font-size:13.5px; color:var(--ink-2); margin:0; display:-webkit-box; -webkit-line-clamp:3;
+  -webkit-box-orient:vertical; overflow:hidden}
+.repo .desc.zh{color:var(--ink); -webkit-line-clamp:5}
+.repo .meta{font-family:var(--mono); font-size:11px; color:var(--muted); display:flex; flex-wrap:wrap; gap:10px}
+.repo .acts{display:flex; gap:8px; align-items:center; margin-top:auto}
+.btn{font-family:var(--mono); font-size:11.5px; padding:7px 11px; min-height:34px; border:1px solid var(--line);
+  background:#fff; color:var(--ink-2); border-radius:4px; cursor:pointer; text-decoration:none; display:inline-flex;
+  align-items:center; gap:6px}
+.btn:hover{border-color:var(--muted); color:var(--ink)}
+.btn.go{background:var(--ink); border-color:var(--ink); color:var(--paper)}
+.btn.go:hover{background:#000; color:#fff}
+.cmd{margin:0; background:#12141a; color:#d8e0d6; border-radius:4px; padding:11px 12px; font-size:12px;
+  overflow:auto; white-space:pre; line-height:1.6}
+.cmd[hidden]{display:none}
+.repo .read{font-size:12.5px; color:var(--muted); font-family:var(--mono);
+  background:none; border:0; padding:4px 0; cursor:pointer; text-align:left; min-height:34px}
+.repo .read:hover{color:var(--acc)}
+.empty{grid-column:1/-1; padding:44px 0; text-align:center; color:var(--muted); font-family:var(--mono); font-size:13px}
+
+.pipeline{margin-top:46px; border-top:1px solid var(--line); padding-top:24px}
+.pipeline summary{cursor:pointer; font-family:var(--mono); font-size:12.5px; color:var(--deep); min-height:34px}
+.pipeline ol{margin:14px 0 0; padding-left:22px; color:var(--ink-2); font-size:14.5px}
+.pipeline li{margin-bottom:9px}
+.pipeline code{background:#efece4; padding:1px 5px; border-radius:3px; font-size:12.5px}
+
+/* ---------- 补充 / 页脚 ---------- */
+.two{display:grid; grid-template-columns:1fr 1fr; gap:36px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px}
+.card h3{margin-bottom:12px; font-size:16.5px}
+.card p:last-child{margin-bottom:0}
+.card ul{color:var(--ink-2); font-size:14.5px; padding-left:20px; margin:0}
+.card li{margin-bottom:8px}
+footer{background:var(--hero); color:#9ea3ac; padding:52px 0 40px; font-size:13.5px}
+footer a{color:#d6d9de; text-decoration:none; border-bottom:1px solid #3a3f47}
+footer .frow{display:flex; flex-wrap:wrap; gap:26px; justify-content:space-between; align-items:flex-start}
+footer .mono{font-size:12px; color:#767c86}
+.up{display:inline-block; margin-top:20px; font-family:var(--mono); font-size:12px; color:#c9ccd3}
+
+@media (max-width:900px){
+  .split{grid-template-columns:1fr; gap:26px}
+  .two{grid-template-columns:1fr}
+  section{padding:56px 0}
+  .sec-head,.body{grid-template-columns:1fr; gap:6px}
+  .sec-num{padding-top:0}
+  .row{grid-template-columns:1fr; gap:6px}
+  /* 手机上把点云挪到 hero 底部单独一条带，避免压在文字上 */
+  .hero{padding:84px 0 40vh; min-height:0; justify-content:flex-start}
+  #cloud{top:auto; bottom:0; height:40vh}
+  .hero h1{margin-bottom:14px}
+  .kpis{gap:16px 24px; margin-top:24px}
+  .kpi{min-width:40%}
+  .grid{grid-template-columns:1fr}
+  footer .frow{gap:18px}
+}
+@media (max-width:700px){
+  .nav .brand .en{display:none}
+  .nav .wrap{gap:12px}
+  .nav a{font-size:11.5px}
+  .wrap{padding:0 18px}
+  .hero .hint{gap:8px 14px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none !important; transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav" aria-label="页面导航">
+  <div class="wrap">
+    <span class="brand">肖宇航<span class="en"> / XIAO YUHANG</span></span>
+    <div class="links">
+      <a href="#why">为什么是 3D</a>
+      <a href="#real">我做过的</a>
+      <a href="#tries">小尝试</a>
+      <a href="#radar">项目雷达</a>
+      <a href="#ai">AI 怎么用的</a>
+      <a href="#next">下一步</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <canvas id="cloud" aria-label="可拖拽旋转的点云示意图：地面与一个箱子"></canvas>
+  <div class="wrap">
+    <p class="eyebrow">郑州大学 · 双足实验室招新 · 第一轮考核 &nbsp;|&nbsp; <b>方向：3D（三维视觉）</b></p>
+    <h1>我想做<em>机器人的眼睛</em>。</h1>
+    <p class="lede">让它走进一个陌生的房间时，知道<b>自己在哪</b>、<b>面前是什么</b>、<b>能不能过去</b>——
+      这件事在实验室的方向表上叫 <s>3D</s>，我理解成三维视觉与三维重建。</p>
+    <div class="tag-row">
+      <span class="tag pick">已选方向：3D · 三维视觉 / 重建</span>
+      <span class="tag">软件工程 2026 级</span>
+      <span class="tag">副班长（考勤 · 早晚自习统计）</span>
+      <span class="tag">11v11 定为大二目标</span>
+    </div>
+    <div class="hint">
+      <span>↑ 这块点云可以拖动旋转</span>
+      <span id="sceneHint">场景：地面 + 箱子</span>
+      <span>颜色 = 深度（近亮远暗）</span>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><b id="kpiRepos">—</b><span>个三维视觉开源项目</span></div>
+      <div class="kpi"><b id="kpiPicked">—</b><span>个我逐个读过、写了中文笔记</span></div>
+      <div class="kpi"><b id="kpiHot">—</b><span>个近两年「星速」爆发</span></div>
+      <div class="kpi"><b id="kpiTime">—</b><span>数据抓取时间</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- 01 方向 -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">01 / 方向</div>
+      <div>
+        <p class="kicker">SELECTED DIRECTION</p>
+        <h2>为什么是 3D：把「看见」拆成可以被计算的几何</h2>
+        <p class="dek">实验室给我的选项里，无人机、工业测量、11v11、巡航我都能说出兴趣，但只有一个方向我现在就能在自己的笔记本上做出能看的东西来——3D。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col">
+        <div class="split">
+          <div>
+            <ul class="clean">
+              <li><b>3D 方向解决的是机器人的低级但致命的问题：</b>我在哪（位姿/里程计）、周围是什么形状（深度/重建）、目标在哪个位置和姿态（6D 位姿）。这些答错了，后面多聪明的决策都是空转。</li>
+              <li><b>它天然是「软件 + 数学」的方向。</b>相机是传感器里最便宜的，剩下的活全在算法里——重投影误差、光束法平差、可微渲染，本质是优化问题。我是软件工程专业，这些我能一行行写下来、跑起来、看结果对不对。</li>
+              <li><b>门槛低、反馈快。</b>一个 8GB 显存的笔记本就能跑小场景的 COLMAP、3DGS、NeRF——先把一个小物体重建出来，看到点云在屏幕上转，比在仿真里等一个月更有正反馈。</li>
+              <li><b>它正好是 11v11 的地基。</b>多机协同要求每台机器人先知道自己在场地的哪个位置、球在哪，这两件事都是三维视觉在做。所以我把 11v11 写成大二目标，而不是现在硬上。</li>
+              <li><b>这条线的历史很清晰，好自学。</b>传统几何（SfM/MVS/SLAM）→ 神经渲染（NeRF、3D 高斯泼溅）→ 视觉几何大模型（DUSt3R、VGGT）。三代方法都开源，都能在 GitHub 上找到原始代码。</li>
+            </ul>
+            <div class="chain">
+              <span>多视图几何</span><i>→</i><span>神经渲染 / 3DGS</span><i>→</i><span>几何大模型</span><i>→</i><span>人形机器人感知</span>
+            </div>
+          </div>
+          <aside class="def">
+            <h3>我理解的「3D 方向 = 做 CV」</h3>
+            <dl>
+              <dt>输入</dt>
+              <dd>单目 / 双目 / RGB-D 图像、深度相机、激光雷达的原始数据。</dd>
+              <dt>中间</dt>
+              <dd>特征与匹配 → 相机位姿 → 深度与点云 → 网格与表面 → 语义。</dd>
+              <dt>输出</dt>
+              <dd>一张能拿来用地形、走路的「地图」，和物体相对于机器人的位置与姿态。</dd>
+              <dt>与人形的关系</dt>
+              <dd>人形机器人抖动大、视点变化剧烈，视觉既要做状态估计的输入，也要做决策的输入——这正是难的地方，也是我想做的原因。</dd>
+              <dt>我现在会什么</dt>
+              <dd>Python 能写、C++ 刚起步（WSL2 + Ubuntu 已就绪）、线代在学。坦诚说：还不会任何 3D 视觉算法，但知道第一站该去哪。</dd>
+            </dl>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 真实的你 -->
+<section id="real">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">02 / 真实的你</div>
+      <div>
+        <p class="kicker">WHAT I ACTUALLY DID</p>
+        <h2>从入学到现在，我因为「想省事」和「想弄懂」主动折腾的事</h2>
+        <p class="dek">没有比赛奖项，也没有完整的大项目。下面每一条都能被追问：为什么做、卡在哪、最后跑没跑起来。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col">
+        <div class="rows">
+          <div class="row">
+            <div class="when">2026 年 9 月<br>班务</div>
+            <div>
+              <h3>让 AI 把班级群的 53 人名单变成 Excel<span class="tagline">做成了</span></h3>
+              <p>当副班长后，考勤和早晚自习统计要反复用班级名单，但名单散在微信群里、格式是「姓名+学号+手机号」的昵称。我让 AI 直接在桌面端驱动微信窗口搜索成员、逐批读取昵称，最后整理成一张能用的表。</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="when">2026 年 9 月<br>班务</div>
+            <div>
+              <h3>用脚本改考勤表，而不是手工搬列<span class="tagline">做成了</span></h3>
+              <p>需要给「课堂考勤表」补上周六周日两天的 10 列，还要保留原来的合并单元格、表头、底色。手工做要反复复制粘贴还容易错，我改成让 AI 写 openpyxl 脚本：先解除所有合并、插入列、按模板逐格复制样式、再按位移重建合并区。跑完一次就对上了。</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="when">2026 年 10 月<br>环境</div>
+            <div>
+              <h3>在自己的笔记本上装出 Linux 开发环境<span class="tagline">做成了</span></h3>
+              <p>学长说第一学期先打 C++ 和 Linux 的基础，我就从零把 WSL2 + Ubuntu 24.04 装起来：限制了 8GB 内存防止吃干宿主、apt 换清华源、装好 g++ / CMake / gdb / git，并在里面编译运行了第一个 hello.cpp（在 ~/lab/w1）。这一步的意义是：我知道编译、链接、调试这套东西在自己机器上是什么样了。</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="when">2026 年 9–10 月<br>工具</div>
+            <div>
+              <h3>把 AI 变成顺手的工作台，而不是聊天框<span class="tagline">在持续做</span></h3>
+              <p>我在这台电脑上配好了自己的 AI 编码链路（本地的模型路由 + 官方 API 直连，编码工具由本地启动器注入增强），也把 AI 助手接上了技能系统（skills）：需要什么能力就去找、装、然后真的用起来。装错东西把依赖搞坏过一次，也自己修回来了。</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="when">2026 年 10 月<br>这个页面</div>
+            <div>
+              <h3>用 AI 做出了你现在看的这个网页<span class="tagline">就是它</span></h3>
+              <p>包括右上角那块能拖的点云、以及下面那个「3D 项目雷达」——数据不是抄来的，是脚本从 GitHub 官方接口抓的，抓完还发现结果里混了不相关的项目，又加了过滤重抓。过程写在 <a href="#ai">第 05 节</a>。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 小尝试 -->
+<section id="tries">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">03 / 小尝试</div>
+      <div>
+        <p class="kicker">SMALL TRIES, INCLUDING THE FAILED ONES</p>
+        <h2>失败的那几条，其实更有信息量</h2>
+        <p class="dek">要求里说「一次没有成功的探索也可以成为网页的一部分」，那我就不藏了：下面带 ⚠ 的都是我踩过的坑。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col">
+        <div class="two">
+          <div class="card">
+            <h3>做成的小事</h3>
+            <ul>
+              <li>把 53 人班级名单提取成结构化表格，之后每次统计都省几十分钟。</li>
+              <li>用脚本给考勤表加了两天共 10 列，样式和合并单元格都保住了。</li>
+              <li>WSL2 里编译并运行 C++ 成功，会用 CMake 组织多文件项目。</li>
+              <li>给 AI 助手装了 4 个技能并真的用起来：3D 高斯泼溅方法对比、3DGS 论文阅读、GitHub Pages 自动部署、开源仓库上手向导。</li>
+              <li>把这个页面从零做出来并准备部署上线（GitHub Pages）。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>踩过的坑 ⚠</h3>
+            <ul>
+              <li>装 WSL 时商店下载卡在几百 MB 不动，才去查「Delivery Optimization 下载队列」，最后换镜像+换路径才通。</li>
+              <li>装一个 Python 包（解析文档用的）把语音依赖里的 onnxruntime 顶坏了，AI 助手和我一起把它降回可用版本才修好。</li>
+              <li>第一次抓 GitHub 数据用的是匿名接口——每小时只有 60 次额度，跑到一半就 403。后来换成用本机已授权的令牌（每小时 5000 次），并把结果落成文件存起来。</li>
+              <li>验证码/防爬、代理、限速：这台机器上 GitHub 直连只有几百 KB/s，大文件得走镜像分片下，这直接改变了我的学习资源选择。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 项目雷达 -->
+<section id="radar">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">04 / 项目雷达</div>
+      <div>
+        <p class="kicker">3D / COMPUTER-VISION REPO RADAR</p>
+        <h2>三维视觉方向的开源项目雷达</h2>
+        <p class="dek">这是我为「3D 方向」做的一个小工具：脚本从 GitHub 官方接口按 topic 与关键词抓取三维视觉相关的仓库，按星标与「星速」（星标 ÷ 月龄）排序。带「我读过」标记的是我逐个看过、写了中文笔记并给出安装命令的。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col" style="max-width:none">
+        <div class="radar-head">
+          <div class="stats">
+            <div class="stat"><b id="sTotal">—</b><span>仓库总数</span></div>
+            <div class="stat"><b id="sPicked">—</b><span>我读过 / 精选</span></div>
+            <div class="stat"><b id="sHot">—</b><span>星速爆发</span></div>
+            <div class="stat"><b id="sStars">—</b><span>合计星标</span></div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="chips" id="chips"></div>
+          <div class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4.5-4.5"></path></svg>
+            <input id="q" type="search" placeholder="搜项目名 / 描述 / topic，如 colmap、splat、depth" aria-label="搜索项目">
+          </div>
+          <label class="sortbox">排序
+            <select id="sort">
+              <option value="stars">星标数</option>
+              <option value="speed">星速（星/月）</option>
+              <option value="recent">最近更新</option>
+              <option value="new">最新创建</option>
+            </select>
+          </label>
+        </div>
+        <p class="hotnote">星速 = 星标 ÷ 仓库月龄；「星速爆发」= 建仓 ≤30 个月且星速 ≥150/月。数据自动生成，点开卡片能看到安装命令。</p>
+
+        <div class="grid" id="grid"></div>
+
+        <details class="pipeline">
+          <summary>这批项目是怎么来的（数据管线，点开看）</summary>
+          <ol>
+            <li>用 GitHub REST API 的 <code>/search/repositories</code> 按 <code>topic:3d-reconstruction</code>、<code>topic:gaussian-splatting</code>、<code>topic:visual-slam</code>、<code>topic:depth-estimation</code> 等 16 组检索式抓取，每组按星标倒序取前若干。</li>
+            <li>外加 31 个我手工列出的仓库（COLMAP、Open3D、nerfstudio、3DGS、VGGT、DUSt3R、ORB-SLAM3、《SLAM 十四讲》等），逐个查详情接口拿到星标、语言、许可证、最近推送时间。</li>
+            <li>检索接口会夹带「沾边但不相干」的高星仓库（人脸识别、扫地机器人、求职资料、网页图形引擎），所以加了相关性关键词过滤 + 一份人工否决清单，被否掉的仓库带原因记在脚本里。</li>
+            <li>分类最初按「第一个命中的关键词」判定，结果把 FAST-LIVO2（激光惯性视觉里程计）错分进「3D 高斯泼溅」；改成给名称/描述/topic 打分取最高后才正确。</li>
+            <li>结果落盘成 <code>data/projects.js</code>，页面离线也能打开；要刷新数据就重跑一次脚本。</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 AI 怎么用的 -->
+<section id="ai">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">05 / 过程</div>
+      <div>
+        <p class="kicker">HOW I USED AI, INCLUDING WHEN I HAD TO CORRECT IT</p>
+        <h2>我是怎么用 AI 把想法做成一个能跑的网页的</h2>
+        <p class="dek">要求里写的「关注你如何借助 AI 把想法逐步做成」——那我讲过程，也讲我纠正 AI 的地方。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col">
+        <ul class="clean">
+          <li><b>先定结构，再让 AI 写。</b>我先想清楚页面要回答评审的四个问题（你是谁 / 你折腾过什么 / 你为什么选这个方向 / 你怎么用 AI），把每一节的内容先写成中文要点，再让 AI 做版式与实现。反过来（先让 AI 排版，再往里塞内容）会得到一堆漂亮但没有信息的页面。</li>
+          <li><b>不让 AI 编数据。</b>页面上的星标不是它写的，是脚本抓的。我要求「抓真实数据 → 存成文件 → 页面读取」，这样即使断网、即使接口限额用完，页面里的数字也还是真的。</li>
+          <li><b>AI 的第一版被我退回两次。</b>第一次它打算用网页爬虫抓 GitHub，我改成用官方 API（有结构化字段、不会被封）；第二次它没处理接口限额，我要求改用本机已授权的令牌并把结果缓存下来。</li>
+          <li><b>发现 AI 的筛选逻辑不严，我自己补规则。</b>抓回来 138 个仓库里混着人脸识别、扫地机器人、求职资料这类高星但不相关的项目——我把「相关性关键词 + 人工否决清单」加进脚本，重抓到 116 个，每个都得说得出为什么属于三维视觉。</li>
+          <li><b>发现分类错了，我要求改成打分。</b>激光惯性视觉里程计被归进「3D 高斯泼溅」，因为脚本只看第一个命中的关键词。改成按名称、描述、topic 加权打分后归到「SLAM 与定位」。</li>
+          <li><b>视觉上我有自己的判断。</b>我不想要那种「渐变背景 + 三张等宽卡片」的模板页：所以点云是用真实投影算出来的、颜色是真实的深度伪彩；正文用纸色和衬线，数据一律等宽字体，让「数字是真的」这件事一眼看得出来。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 下一步 -->
+<section id="next">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-num">06 / 下一步</div>
+      <div>
+        <p class="kicker">NEXT 90 DAYS</p>
+        <h2>进来之前我会先做到的</h2>
+        <p class="dek">学长给的第一学期任务是打基础 + 过考核，我按这个排了可验证的动作，不做「假装努力」的事。</p>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec-num"></div>
+      <div class="col">
+        <div class="two">
+          <div class="card">
+            <h3>12 周内</h3>
+            <ul>
+              <li>把 C++ 过完指针 / 内存 / 面向对象 / STL 四段，每天一题保持手感。</li>
+              <li>Linux 只在 WSL 里练：每天用命令行干一件真事（处理名单、统计考勤）。</li>
+              <li>在 Ubuntu 里从零 clone 一个开源 C++ 项目，编译、跑起来、用 gdb 打断点。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>3D 这条线</h3>
+            <ul>
+              <li>跑通一条最小重建链路：自己拍一组照片 → COLMAP 出点云 → Open3D 看结果。</li>
+              <li>装 nerfstudio，用同一组照片训一次 3DGS，比较它和传统重建的差别。</li>
+              <li>把上面每一步的失败与结论写进自己的笔记仓库，而不是只留在聊天记录里。</li>
+            </ul>
+          </div>
+        </div>
+        <p style="margin-top:22px;color:var(--ink-2)">如果组里允许，我最想做的是跟着做「机器人视觉感知」里最脏最基础的那部分活：标定、数据整理、日志与可视化工具。我知道新人多半从这些开始，也愿意从这些开始——它们恰恰是「机器人的眼睛」最不能出错的地方。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="frow">
+      <div>
+        <p style="margin:0 0 8px;color:#f2f0ea;font-family:var(--display);font-size:19px">肖宇航 · 郑州大学 · 软件工程 2026 级</p>
+        <p class="mono" style="margin:0">方向：3D（三维视觉 / 三维重建）&nbsp;·&nbsp;11v11 定为大二目标</p>
+        <a class="up" href="#top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">↑ 回到顶部 / 拖动那块点云看看</a>
+      </div>
+      <div class="mono" style="max-width:36ch;text-align:left">
+        <p style="margin:0 0 6px">本页由我与 AI 助手协作完成：结构、文案、点云渲染与数据管线。</p>
+        <p style="margin:0">项目数据来自 GitHub REST API，抓取脚本与网页源码见仓库 <a id="repoLink" href="#">（部署后补链接）</a>。</p>
+        <p style="margin:10px 0 0" id="genAt">数据生成时间：—</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="data/projects.js" onerror="window.__PROJECTS_MISSING__=1"></script>
+<script>
+/* ============================================================
+   1) HERO 点云：真实三维投影 + 深度伪彩，可拖动旋转
+   ============================================================ */
+(function(){
+  var cv = document.getElementById('cloud');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W=0,H=0,DPR=1;
+  var STOPS=[[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]]; // viridis 关键色
+  function cmap(t){
+    t=Math.max(0,Math.min(1,t));
+    var x=t*(STOPS.length-1), i=Math.floor(x), f=x-i;
+    var a=STOPS[i], b=STOPS[Math.min(i+1,STOPS.length-1)];
+    return 'rgb('+(a[0]+(b[0]-a[0])*f|0)+','+(a[1]+(b[1]-a[1])*f|0)+','+(a[2]+(b[2]-a[2])*f|0)+')';
+  }
+
+  // —— 三种「机器人眼中的场景」，都是参数化采样出来的点云
+  function sceneGroundBox(n){
+    var p=[],i;
+    for(i=0;i<n*0.45;i++){                                   // 地面
+      p.push([(Math.random()-0.5)*7, 1.55, (Math.random()-0.5)*7]);
+    }
+    var c=[[1.1,0.15],[1.1,-0.7],[-0.6,0.15],[-0.6,-0.7]];   // 箱子四个侧面 + 顶面
+    for(i=0;i<n*0.4;i++){
+      var s=c[i%4], y=1.55-Math.random()*1.5;
+      p.push([s[0], y, s[1]]);
+    }
+    for(i=0;i<n*0.15;i++){
+      p.push([-0.6+Math.random()*1.7, 0.05, -0.7+Math.random()*0.85]);
+    }
+    return p;
+  }
+  function sceneChair(n){
+    var p=[],i;
+    for(i=0;i<n*0.2;i++) p.push([(Math.random()-0.5)*6,1.55,(Math.random()-0.5)*6]);   // 地面
+    for(i=0;i<n*0.22;i++) p.push([-0.55+Math.random()*1.1, 0.35, -0.5+Math.random()*0.95]); // 座面
+    for(i=0;i<n*0.22;i++) p.push([-0.55+Math.random()*1.1, -0.15-Math.random()*0.75, -0.5]); // 靠背
+    for(i=0;i<n*0.36;i++){
+      var lx=[[-0.5,-0.45],[0.5,-0.45],[-0.5,0.4],[0.5,0.4]][i%4];
+      p.push([lx[0]+(Math.random()-.5)*.05, 1.5-Math.random()*1.1, lx[1]+(Math.random()-.5)*.05]);
+    }
+    return p;
+  }
+  function sceneTorus(n){
+    var p=[],R=1.5,r=0.55,i;
+    for(i=0;i<n;i++){
+      var u=Math.random()*Math.PI*2, v=Math.random()*Math.PI*2;
+      p.push([(R+r*Math.cos(v))*Math.cos(u), 0.9+(R+r*Math.cos(v))*Math.sin(u)*0.75, r*Math.sin(v)*1.4]);
+    }
+    return p;
+  }
+  var SCENES=[['地面 + 箱子',sceneGroundBox],['椅子',sceneChair],['环面（抽象）',sceneTorus]];
+  var si=0, pts=[];
+
+  function build(){
+    var n = window.innerWidth<760 ? 1500 : (window.innerWidth<1200? 2400 : 3200);
+    pts = SCENES[si][1](n);
+    document.getElementById('sceneHint').textContent = '场景：'+SCENES[si][0]+'（点一下换一个）';
+  }
+
+  var rx=-0.34, ry=0.6, auto=true, drag=false, lx=0, ly=0;
+  function resize(){
+    DPR=Math.min(2,window.devicePixelRatio||1);
+    W=cv.clientWidth; H=cv.clientHeight;
+    cv.width=W*DPR; cv.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var cx=W*0.72, cy=H*0.52;                       // 点云放在右侧，给文字留出位置
+    var f=Math.min(W,H)*0.9, cam=6.2;
+    if(W<900){                                      // 手机上点云在 hero 底部独立一条带里，居中
+      cx=W*0.5; cy=H*0.5; f=Math.min(W*0.78,H*1.3);
+    }
+    var sinx=Math.sin(rx), cosx=Math.cos(rx), siny=Math.sin(ry), cosy=Math.cos(ry);
+    var buckets=[], NB=16, i, k;
+    for(i=0;i<NB;i++) buckets.push([]);
+    var depthMin=1e9, depthMax=-1e9, proj=new Array(pts.length);
+    for(i=0;i<pts.length;i++){
+      var p=pts[i], x=p[0],y=p[1],z=p[2];
+      var x1= x*cosy + z*siny, z1=-x*siny + z*cosy;
+      var y2= y*cosx - z1*sinx, z2= y*sinx + z1*cosx;
+      var d = cam + z2;
+      var sz = f/d;
+      var sx = cx + x1*sz, sy = cy - y2*sz;
+      proj[i]=[sx,sy,d];
+      if(d<depthMin)depthMin=d; if(d>depthMax)depthMax=d;
+    }
+    var span = Math.max(0.001, depthMax-depthMin);
+    for(i=0;i<pts.length;i++){
+      var q=proj[i];
+      if(q[0]<-40||q[0]>W+40||q[1]<-40||q[1]>H+40) continue;
+      var t=(q[2]-depthMin)/span;
+      k=Math.min(NB-1, (t*NB)|0);
+      buckets[k].push(i);
+    }
+    for(k=0;k<NB;k++){
+      var arr=buckets[k]; if(!arr.length) continue;
+      var t2=k/(NB-1);
+      ctx.fillStyle=cmap(1-t2);
+      var r = 1.9 - t2*0.9;
+      for(i=0;i<arr.length;i++){
+        var q2=proj[arr[i]];
+        ctx.fillRect(q2[0]-r*0.5, q2[1]-r*0.5, r, r);
+      }
+    }
+  }
+  function loop(){
+    if(auto && !drag && !reduce) ry += 0.0022;
+    draw();
+    requestAnimationFrame(loop);
+  }
+  cv.addEventListener('pointerdown',function(e){
+    drag=true; lx=e.clientX; ly=e.clientY; cv.classList.add('drag'); cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove',function(e){
+    if(!drag) return;
+    ry += (e.clientX-lx)*0.008; rx += (e.clientY-ly)*0.008;
+    rx=Math.max(-1.35,Math.min(1.35,rx));
+    lx=e.clientX; ly=e.clientY; draw();
+  });
+  function up(){ drag=false; cv.classList.remove('drag'); }
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  cv.addEventListener('click',function(){ si=(si+1)%SCENES.length; build(); draw(); });
+  window.addEventListener('resize',function(){ resize(); build(); draw(); });
+  resize(); build(); loop();
+})();
+
+/* ============================================================
+   2) 项目雷达：筛选 / 搜索 / 排序 / 展开安装命令
+   ============================================================ */
+(function(){
+  var D = window.__PROJECTS__;
+  var grid=document.getElementById('grid');
+  if(!D || !D.items){ grid.innerHTML='<p class="empty">没有读到 data/projects.js —— 请先运行 tools/fetch_projects.py 生成数据。</p>'; return; }
+  var items=D.items;
+
+  function k(n){ return n>=1000 ? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
+  function num(n){ return n.toLocaleString('en-US'); }
+  document.getElementById('kpiRepos').textContent=D.total;
+  document.getElementById('kpiPicked').textContent=D.picked;
+  document.getElementById('kpiHot').textContent=D.hot;
+  document.getElementById('kpiTime').textContent=(D.generated_at||'').slice(0,10);
+  document.getElementById('sTotal').textContent=D.total;
+  document.getElementById('sPicked').textContent=D.picked;
+  document.getElementById('sHot').textContent=D.hot;
+  document.getElementById('sStars').textContent=k(items.reduce(function(a,b){return a+b.stars;},0));
+  document.getElementById('genAt').textContent='数据生成时间：'+(D.generated_at||'—')+'（重跑 tools/fetch_projects.py 可刷新）';
+
+  var cats=[];
+  items.forEach(function(it){ if(cats.indexOf(it.category)<0) cats.push(it.category); });
+  var counts={}; items.forEach(function(it){ counts[it.category]=(counts[it.category]||0)+1; });
+  var defs=[['all','全部',items.length],['picked','我读过',D.picked],['hot','星速爆发',D.hot]]
+    .concat(cats.sort(function(a,b){return counts[b]-counts[a];}).map(function(c){return [c,c,counts[c]];}));
+  var chips=document.getElementById('chips');
+  defs.forEach(function(d,i){
+    var b=document.createElement('button');
+    b.className='chip'+(i<3?' acc':''); b.type='button';
+    b.setAttribute('aria-pressed', i===0?'true':'false');
+    b.dataset.f=d[0];
+    b.innerHTML=d[1]+'<span class="n">'+d[2]+'</span>';
+    b.addEventListener('click',function(){
+      Array.prototype.forEach.call(chips.children,function(c){c.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true'); render();
+    });
+    chips.appendChild(b);
+  });
+
+  var q=document.getElementById('q'), sortSel=document.getElementById('sort');
+  q.addEventListener('input',render); sortSel.addEventListener('change',render);
+
+  function activeFilter(){
+    var el=chips.querySelector('[aria-pressed="true"]');
+    return el?el.dataset.f:'all';
+  }
+  function visible(){
+    var f=activeFilter(), term=q.value.trim().toLowerCase();
+    var list=items.filter(function(it){
+      if(f==='picked' && it.tier!=='picked') return false;
+      if(f==='hot' && !it.hot) return false;
+      if(f!=='all' && f!=='picked' && f!=='hot' && it.category!==f) return false;
+      if(!term) return true;
+      var hay=(it.full_name+' '+it.desc+' '+it.topics.join(' ')+' '+(it.why||'')+' '+it.lang).toLowerCase();
+      return hay.indexOf(term)>=0;
+    });
+    var s=sortSel.value;
+    list.sort(function(a,b){
+      if(s==='speed') return b.star_per_month-a.star_per_month;
+      if(s==='recent') return (b.updated>a.updated)?1:(b.updated<a.updated?-1:0);
+      if(s==='new') return (b.created>a.created)?1:(b.created<a.created?-1:0);
+      return b.stars-a.stars;
+    });
+    return list;
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  var open={};
+  function render(){
+    var list=visible();
+    if(!list.length){ grid.innerHTML='<p class="empty">没有匹配的项目，换个关键词试试（例如 colmap / depth / slam）。</p>'; return; }
+    var html=list.map(function(it){
+      var pick=it.tier==='picked';
+      var cmd=it.install||('git clone '+it.url+'.git');
+      var showed=open[it.full_name];
+      return '<article class="repo'+(pick?' picked':'')+'">'
+        +'<div class="top"><span class="stars">★ '+k(it.stars)+'</span>'
+        +'<div class="badges">'
+        + (pick?'<span class="badge pick">我读过</span>':'')
+        + (it.hot?'<span class="badge hot">星速 '+it.star_per_month+'/月</span>':(it.star_per_month?'<span class="badge">'+it.star_per_month+'/月</span>':''))
+        + (it.archived?'<span class="badge arch">已归档</span>':'')
+        +'</div></div>'
+        +'<h3>'+esc(it.name)+'</h3>'
+        +'<p class="owner">'+esc(it.owner)+' · '+esc(it.category)+' · '+esc(it.lang||'—')+' · '+esc(it.license)+'</p>'
+        +'<p class="desc'+(pick?' zh':'')+'">'+esc(pick?(it.why||it.desc):(it.desc||'（GitHub 上没有写描述）'))+'</p>'
+        +'<p class="meta"><span>fork '+k(it.forks)+'</span><span>建仓 '+it.created+'</span><span>推送 '+it.updated+'</span></p>'
+        +'<div class="acts">'
+        +'<button class="btn" type="button" title="点开查看可复制的安装 / 克隆命令" data-toggle="'+esc(it.full_name)+'">'+(showed?'收起安装命令 ▴':'安装命令 ▾')+'</button>'
+        +'<a class="btn go" href="'+it.url+'" target="_blank" rel="noopener">GitHub ↗</a>'
+        +(it.homepage?'<a class="btn" href="'+esc(it.homepage)+'" target="_blank" rel="noopener">主页 ↗</a>':'')
+        +'</div>'
+        +(showed?('<pre class="cmd">'+esc(cmd)+'</pre><button class="read" type="button" data-copy="'+esc(cmd)+'">点击复制命令</button>'):'')
+        +'</article>';
+    }).join('');
+    grid.innerHTML=html;
+  }
+
+  grid.addEventListener('click',function(e){
+    var t=e.target.closest('[data-toggle],[data-copy]'); if(!t) return;
+    if(t.dataset.toggle){
+      var key=t.dataset.toggle; open[key]=!open[key]; render();
+      if(open[key]){ var el=grid.querySelector('[data-toggle="'+key+'"]'); if(el) el.scrollIntoView({block:'nearest'}); }
+      return;
+    }
+    if(t.dataset.copy){
+      var txt=t.dataset.copy;
+      var done=function(){ t.textContent='已复制 ✓'; setTimeout(function(){t.textContent='点击复制命令';},1600); };
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,function(){raw();}); }
+      else raw();
+      function raw(){ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select();
+        try{document.execCommand('copy'); done();}catch(err){ t.textContent='复制失败，请手动选中'; } document.body.removeChild(ta); }
+    }
+  });
+
+  render();
+
+  /* 导航高亮 + 深浅底色切换 + 入场 */
+  var nav=document.getElementById('nav'), links=Array.prototype.slice.call(nav.querySelectorAll('a'));
+  var secs=links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function onScroll(){
+    var y=window.scrollY;
+    var heroH=document.querySelector('.hero').offsetHeight;
+    nav.classList.toggle('light', y>heroH-70);
+    var idx=-1;
+    secs.forEach(function(s,i){ if(s && s.getBoundingClientRect().top<=120) idx=i; });
+    links.forEach(function(a,i){ a.classList.toggle('on', i===idx); });
+  }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+})();
+</script>
+</body>
+</html>
