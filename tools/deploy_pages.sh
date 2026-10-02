@@ -93,12 +93,14 @@ git add -A && { git diff --cached --quiet || git commit -q -m "页脚补上仓�
 git push -q origin main
 
 say "等待站点上线（最多 3 分钟）"
-# 注意：MSYS 版 curl 用 -o /dev/null 会以 exit 23（写失败）退出，所以写成真临时文件，
-# 并且用 tr 把非数字字符滤掉，避免把退出码兜底拼成 "200000" 这种假值。
-TMPBODY="$(mktemp 2>/dev/null || echo "./.pages_check.$$")"
+# 两个 Windows/MSYS 坑，都踩过：
+#   1) curl 用 -o /dev/null 会以 exit 23（Failed writing body）退出，所以把响应体写进临时文件；
+#   2) mktemp 给的是 /tmp/... 这种 MSYS 路径，Windows 版 curl 认不出来，所以临时文件放当前目录；
+#   3) 再给命令替换兜一个 || true，否则 set -e + pipefail 会让脚本在第一次探测时就静默退出。
+TMPBODY="./.pages_check.tmp"
 CODE=000
 for i in $(seq 1 18); do
-  CODE="$(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "$SITE" 2>/dev/null | tr -dc '0-9')"
+  CODE="$(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "$SITE" 2>/dev/null | tr -dc '0-9' || true)"
   [ -n "$CODE" ] || CODE=000
   printf '    第 %2d 次检查：HTTP %s\n' "$i" "$CODE"
   [ "$CODE" = "200" ] && break
@@ -109,8 +111,9 @@ rm -f "$TMPBODY"
 if [ "$CODE" = "200" ]; then
   echo
   echo "上线成功：$SITE"
-  echo "抽查数据文件 data/projects.js：HTTP $(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "${SITE}data/projects.js" 2>/dev/null | tr -dc '0-9')"
-  echo "页面标题：$(curl -s -m 20 "$SITE" | grep -o '<title>[^<]*' | head -1)"
+  echo "抽查数据文件 data/projects.js：HTTP $(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "${SITE}data/projects.js" 2>/dev/null | tr -dc '0-9' || true)"
+  echo "页面标题：$(curl -s -m 20 "$SITE" | grep -o '<title>[^<]*' | head -1 || true)"
+  rm -f "$TMPBODY"
 else
   echo
   echo "站点还没就绪（HTTP $CODE）。常见原因：首次构建要 1-2 分钟，或 Pages 需手动确认。"
