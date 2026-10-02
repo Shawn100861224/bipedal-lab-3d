@@ -93,19 +93,24 @@ git add -A && { git diff --cached --quiet || git commit -q -m "页脚补上仓�
 git push -q origin main
 
 say "等待站点上线（最多 3 分钟）"
+# 注意：MSYS 版 curl 用 -o /dev/null 会以 exit 23（写失败）退出，所以写成真临时文件，
+# 并且用 tr 把非数字字符滤掉，避免把退出码兜底拼成 "200000" 这种假值。
+TMPBODY="$(mktemp 2>/dev/null || echo "./.pages_check.$$")"
 CODE=000
 for i in $(seq 1 18); do
-  CODE="$(curl -s -o /dev/null -w '%{http_code}' -m 15 "$SITE" || echo 000)"
+  CODE="$(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "$SITE" 2>/dev/null | tr -dc '0-9')"
+  [ -n "$CODE" ] || CODE=000
   printf '    第 %2d 次检查：HTTP %s\n' "$i" "$CODE"
   [ "$CODE" = "200" ] && break
   sleep 10
 done
+rm -f "$TMPBODY"
 
 if [ "$CODE" = "200" ]; then
   echo
   echo "上线成功：$SITE"
-  echo "抽查数据文件：HTTP $(curl -s -o /dev/null -w '%{http_code}' -m 15 "${SITE}data/projects.js")"
-  echo "首页标题：$(curl -s -m 20 "$SITE" | grep -o '<title>[^<]*' | head -1)"
+  echo "抽查数据文件 data/projects.js：HTTP $(curl -s -m 15 -o "$TMPBODY" -w '%{http_code}' "${SITE}data/projects.js" 2>/dev/null | tr -dc '0-9')"
+  echo "页面标题：$(curl -s -m 20 "$SITE" | grep -o '<title>[^<]*' | head -1)"
 else
   echo
   echo "站点还没就绪（HTTP $CODE）。常见原因：首次构建要 1-2 分钟，或 Pages 需手动确认。"
